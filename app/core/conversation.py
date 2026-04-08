@@ -1,44 +1,54 @@
 from app.core.funnel import get_next_question, get_next_stage
 from app.core.lead_scoring import score_lead
+from app.core.extractor import extract_info
+from app.services.llm_service import generate_reply
 
-# In-memory storage (later replace with DB)
 user_states = {}
 user_data = {}
 
 def handle_message(user_id, message):
-    # initialize user
+    # Initialize
     if user_id not in user_states:
         user_states[user_id] = "NEW"
         user_data[user_id] = {}
 
-    stage = user_states[user_id]
+    # 🔍 Extract info from message
+    extracted = extract_info(message)
+    user_data[user_id].update(extracted)
 
-    # store answers
-    if stage == "BUDGET":
-        user_data[user_id]["budget"] = message
-    elif stage == "CITY":
-        user_data[user_id]["city"] = message
-    elif stage == "TIMELINE":
-        user_data[user_id]["timeline"] = message
+    data = user_data[user_id]
 
-    # move to next stage
-    next_stage = get_next_stage(stage)
-    user_states[user_id] = next_stage
+    # 🧠 Check what is missing
+    if "budget" not in data:
+        user_states[user_id] = "BUDGET"
+        return get_next_question("BUDGET")
 
-    # if done → score lead
-    if next_stage == "DONE":
-        data = user_data[user_id]
-        score, priority = score_lead(data)
+    if "city" not in data:
+        user_states[user_id] = "CITY"
+        return get_next_question("CITY")
 
-        return (
-            f"✅ Lead Analysis Complete\n\n"
-            f"Budget: {data.get('budget')}\n"
-            f"City: {data.get('city')}\n"
-            f"Timeline: {data.get('timeline')}\n\n"
-            f"Score: {score}\n"
-            f"Priority: {priority}\n\n"
-            f"Our team will contact you soon!"
-        )
+    if "timeline" not in data:
+        user_states[user_id] = "TIMELINE"
+        return get_next_question("TIMELINE")
 
-    # ask next question
-    return get_next_question(next_stage)
+    # ✅ All data collected → score
+    score, priority = score_lead(data)
+
+    # 🤖 Generate smart reply using LLM
+    prompt = f"""
+    You are a franchise sales expert.
+
+    Lead details:
+    Budget: {data.get('budget')}
+    City: {data.get('city')}
+    Timeline: {data.get('timeline')}
+
+    Score: {score}
+    Priority: {priority}
+
+    Generate a persuasive, professional response encouraging them to book a call.
+    """
+
+    ai_response = generate_reply(prompt)
+
+    return ai_response

@@ -2,10 +2,10 @@
 
 def get_next_question(stage):
     flow = {
-        "NEW": "Welcome! Interested in starting a franchise?\n\nWhat is your budget range?",
-        "BUDGET": "Which city are you planning to start in?",
-        "CITY": "What is your expected timeline to start?",
-        "TIMELINE": "Do you have any prior business experience? (yes/no)",
+        "NEW": "Welcome! Interested in starting a franchise?",
+        "BUDGET": "What is your budget range?",
+        "CITY": "Which city are you planning to start in?",
+        "TIMELINE": "What is your expected timeline to start?",
         "DONE": "Thanks! Analyzing your profile..."
     }
     return flow.get(stage, "Let's continue.")
