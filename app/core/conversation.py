@@ -1,5 +1,6 @@
 from app.core.lead_scoring import score_lead
 from app.core.extractor import extract_info
+from app.core.faq import get_faq_answer
 from app.services.llm_service import generate_reply
 from app.services.supabase_service import (
     get_user,
@@ -16,21 +17,26 @@ def handle_message(user_id, message):
     if not get_user(user_id):
         create_user(user_id)
 
+    # 🔍 FAQ handling (FIRST priority)
+    faq_answer = get_faq_answer(message)
+    if faq_answer:
+        return faq_answer
+
     # ✅ Get existing lead data
     existing = get_lead(user_id)
     data = existing[0] if existing else {}
 
-    # 🔍 Extract info from user message
+    # 🔍 Extract structured info from message
     extracted = extract_info(message)
     data.update(extracted)
 
-    # ✅ Save updated lead info
+    # ✅ Save updated lead
     upsert_lead(user_id, data)
 
-    # ✅ Update last interaction time (IMPORTANT for follow-ups)
+    # ✅ Update last interaction time (for follow-ups)
     update_last_message(user_id)
 
-    # 🧠 Ask for missing fields (dynamic flow)
+    # 🧠 Ask missing information dynamically
     if not data.get("budget"):
         return "💰 What is your budget range for starting the franchise?"
 
@@ -56,8 +62,10 @@ def handle_message(user_id, message):
     Lead Score: {score}
     Priority: {priority}
 
-    Write a persuasive, friendly response encouraging the user to book a call.
-    Keep it concise and human-like.
+    Write a persuasive, friendly, human-like response encouraging the user to book a call.
+    Keep it concise (3-4 lines max).
     """
 
-    return generate_reply(prompt)
+    ai_response = generate_reply(prompt)
+
+    return ai_response
