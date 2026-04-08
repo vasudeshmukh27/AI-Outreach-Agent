@@ -22,13 +22,16 @@ def get_lead(chat_id):
 
 
 def upsert_lead(chat_id, data):
-    supabase.table("leads").upsert({
-        "chat_id": chat_id,
-        "budget": data.get("budget"),
-        "city": data.get("city"),
-        "timeline": data.get("timeline")
-    }).execute()
-
+    supabase.table("leads").upsert(
+        {
+            "chat_id": chat_id,
+            "budget": data.get("budget"),
+            "city": data.get("city"),
+            "timeline": data.get("timeline"),
+        },
+        on_conflict="chat_id"
+    ).execute()
+    
 
 def save_score(chat_id, score, priority):
     supabase.table("leads").update({
