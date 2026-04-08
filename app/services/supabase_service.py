@@ -35,3 +35,21 @@ def save_score(chat_id, score, priority):
         "score": score,
         "priority": priority
     }).eq("chat_id", chat_id).execute()
+
+
+def update_last_message(chat_id):
+    supabase.table("leads").update({
+        "last_message_at": "now()",
+        "followup_sent": False
+    }).eq("chat_id", chat_id).execute()
+
+
+def get_pending_followups():
+    response = supabase.table("leads").select("*").execute()
+    return response.data
+
+
+def mark_followup_sent(chat_id):
+    supabase.table("leads").update({
+        "followup_sent": True
+    }).eq("chat_id", chat_id).execute()
