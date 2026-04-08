@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from app.services.supabase_service import get_pending_followups, mark_followup_sent
 from app.services.telegram_service import send_message
+from datetime import datetime, timezone
 
 FOLLOWUP_DELAY_MINUTES = 2  # for testing
 
@@ -16,7 +17,7 @@ def check_and_send_followups():
             continue
 
         last_time = datetime.fromisoformat(last_time.replace("Z", "+00:00"))
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         diff = now - last_time
 
