@@ -13,8 +13,11 @@ def get_user(chat_id):
 
 
 def create_user(chat_id):
-    supabase.table("users").insert({"chat_id": chat_id}).execute()
-
+    supabase.table("users").upsert(
+        {"chat_id": chat_id},
+        on_conflict="chat_id"
+    ).execute()
+    
 
 def get_lead(chat_id):
     response = supabase.table("leads").select("*").eq("chat_id", chat_id).execute()
