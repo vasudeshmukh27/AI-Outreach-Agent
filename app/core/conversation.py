@@ -2,7 +2,12 @@ from app.core.lead_scoring import score_lead
 from app.core.extractor import extract_info
 from app.services.llm_service import generate_reply
 from app.services.supabase_service import (
-    get_user, create_user, get_lead, upsert_lead, save_score
+    get_user,
+    create_user,
+    get_lead,
+    upsert_lead,
+    save_score,
+    update_last_message
 )
 
 
@@ -15,40 +20,44 @@ def handle_message(user_id, message):
     existing = get_lead(user_id)
     data = existing[0] if existing else {}
 
-    # 🔍 Extract new info
+    # 🔍 Extract info from user message
     extracted = extract_info(message)
     data.update(extracted)
 
-    # ✅ Save updated lead
+    # ✅ Save updated lead info
     upsert_lead(user_id, data)
 
-    # 🧠 Ask missing info
+    # ✅ Update last interaction time (IMPORTANT for follow-ups)
+    update_last_message(user_id)
+
+    # 🧠 Ask for missing fields (dynamic flow)
     if not data.get("budget"):
-        return "What is your budget range?"
+        return "💰 What is your budget range for starting the franchise?"
 
     if not data.get("city"):
-        return "Which city are you planning to start in?"
+        return "📍 Which city are you planning to start in?"
 
     if not data.get("timeline"):
-        return "What is your expected timeline?"
+        return "⏳ What is your expected timeline to start?"
 
-    # ✅ Score lead
+    # ✅ All data collected → score lead
     score, priority = score_lead(data)
     save_score(user_id, score, priority)
 
-    # 🤖 AI response
+    # 🤖 Generate AI response (sales-style)
     prompt = f"""
-    You are a franchise sales expert.
+    You are a professional franchise sales consultant.
 
-    Lead details:
+    Lead Details:
     Budget: {data.get('budget')}
     City: {data.get('city')}
     Timeline: {data.get('timeline')}
 
-    Score: {score}
+    Lead Score: {score}
     Priority: {priority}
 
-    Respond professionally and encourage booking a call.
+    Write a persuasive, friendly response encouraging the user to book a call.
+    Keep it concise and human-like.
     """
 
     return generate_reply(prompt)
