@@ -1,40 +1,42 @@
-from app.core.funnel import get_next_question, get_next_stage
 from app.core.lead_scoring import score_lead
 from app.core.extractor import extract_info
 from app.services.llm_service import generate_reply
+from app.services.supabase_service import (
+    get_user, create_user, get_lead, upsert_lead, save_score
+)
 
-user_states = {}
-user_data = {}
 
 def handle_message(user_id, message):
-    # Initialize
-    if user_id not in user_states:
-        user_states[user_id] = "NEW"
-        user_data[user_id] = {}
+    # ✅ Ensure user exists
+    if not get_user(user_id):
+        create_user(user_id)
 
-    # 🔍 Extract info from message
+    # ✅ Get existing lead data
+    existing = get_lead(user_id)
+    data = existing[0] if existing else {}
+
+    # 🔍 Extract new info
     extracted = extract_info(message)
-    user_data[user_id].update(extracted)
+    data.update(extracted)
 
-    data = user_data[user_id]
+    # ✅ Save updated lead
+    upsert_lead(user_id, data)
 
-    # 🧠 Check what is missing
-    if "budget" not in data:
-        user_states[user_id] = "BUDGET"
-        return get_next_question("BUDGET")
+    # 🧠 Ask missing info
+    if not data.get("budget"):
+        return "What is your budget range?"
 
-    if "city" not in data:
-        user_states[user_id] = "CITY"
-        return get_next_question("CITY")
+    if not data.get("city"):
+        return "Which city are you planning to start in?"
 
-    if "timeline" not in data:
-        user_states[user_id] = "TIMELINE"
-        return get_next_question("TIMELINE")
+    if not data.get("timeline"):
+        return "What is your expected timeline?"
 
-    # ✅ All data collected → score
+    # ✅ Score lead
     score, priority = score_lead(data)
+    save_score(user_id, score, priority)
 
-    # 🤖 Generate smart reply using LLM
+    # 🤖 AI response
     prompt = f"""
     You are a franchise sales expert.
 
@@ -46,9 +48,7 @@ def handle_message(user_id, message):
     Score: {score}
     Priority: {priority}
 
-    Generate a persuasive, professional response encouraging them to book a call.
+    Respond professionally and encourage booking a call.
     """
 
-    ai_response = generate_reply(prompt)
-
-    return ai_response
+    return generate_reply(prompt)
